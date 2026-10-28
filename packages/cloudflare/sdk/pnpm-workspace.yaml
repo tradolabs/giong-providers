@@ -1,0 +1,2 @@
+allowBuilds:
+  '@giong/sdk@git+https://github.com/tradolabs/giong.git': true

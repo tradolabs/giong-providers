@@ -2,7 +2,7 @@
   "name": "@giong/cloudflare",
   "version": "0.1.0",
   "type": "module",
-  "packageManager": "pnpm@11.0.5",
+  "packageManager": "pnpm@12.15.0",
   "files": [
     "dist"
   ],
@@ -12,11 +12,8 @@
     "build": "tsc",
     "prepack": "pnpm build"
   },
-  "peerDependencies": {
-    "@tradolabs/giong": "^0.1.0"
-  },
   "devDependencies": {
-    "@tradolabs/giong": "file:../../../../giong/sdks/npm",
+    "@giong/sdk": "github:tradolabs/giong#main&path:/sdks/npm",
     "typescript": "^5.7.2"
   }
 }
