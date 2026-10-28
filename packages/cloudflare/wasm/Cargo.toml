@@ -1,0 +1,15 @@
+[package]
+name = "giong-cloudflare"
+version.workspace = true
+edition = "2024"
+
+[[bin]]
+name = "giong-cloudflare-r2"
+path = "src/r2.rs"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+url.workspace = true
+wit-bindgen.workspace = true

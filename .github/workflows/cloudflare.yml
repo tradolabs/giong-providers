@@ -1,0 +1,56 @@
+name: Publish Cloudflare Wasm
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: cloudflare-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Rust
+        run: rustup toolchain install stable --profile minimal --target wasm32-wasip2
+
+      - name: Build Cloudflare resources
+        run: |
+          cargo +stable build --locked --release --target wasm32-wasip2 \
+            -p giong-cloudflare --bins --message-format=json \
+            | jq -r 'select(.reason == "compiler-artifact" and (.target.kind | index("bin"))) | .executable // empty' \
+            > wasm-artifacts.txt
+          test -s wasm-artifacts.txt
+
+      - name: Install wkg
+        run: cargo +stable install wkg --version 0.16.1 --locked
+
+      - name: Log in to GHCR
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USER" --password-stdin
+
+      - name: Publish Cloudflare resources
+        env:
+          REGISTRY_OWNER: ${{ github.repository_owner }}
+        run: |
+          version="$(cargo +stable metadata --locked --no-deps --format-version 1 \
+            | jq -er '.packages[] | select(.name == "giong-cloudflare") | .version')"
+          owner="${REGISTRY_OWNER,,}"
+          while IFS= read -r artifact; do
+            binary="$(basename "$artifact" .wasm)"
+            resource="${binary#giong-cloudflare-}"
+            wkg oci push "ghcr.io/$owner/cloudflare/$resource:$version" "$artifact"
+          done < wasm-artifacts.txt

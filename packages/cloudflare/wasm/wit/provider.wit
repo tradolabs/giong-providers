@@ -1,0 +1,30 @@
+package giong:provider@0.1.0;
+
+interface host {
+    record http-request {
+        method: string,
+        url: string,
+        headers: list<tuple<string, string>>,
+        body: list<u8>,
+    }
+
+    record http-response {
+        status: u16,
+        headers: list<tuple<string, string>>,
+        body: list<u8>,
+    }
+
+    http: func(request: http-request) -> result<http-response, string>;
+    secret: func(name: string) -> option<string>;
+}
+
+interface lifecycle {
+    read: func(config: string) -> result<option<string>, string>;
+    apply: func(config: string, current: option<string>) -> result<string, string>;
+    delete: func(state: string) -> result<_, string>;
+}
+
+world provider {
+    import host;
+    export lifecycle;
+}
