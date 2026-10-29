@@ -52,5 +52,5 @@ jobs:
           while IFS= read -r artifact; do
             binary="$(basename "$artifact" .wasm)"
             resource="${binary#giong-cloudflare-}"
-            wkg oci push "ghcr.io/$owner/cloudflare/$resource:$version" "$artifact"
+            wkg oci push "ghcr.io/$owner/giong-providers/cloudflare/$resource:$version" "$artifact"
           done < wasm-artifacts.txt

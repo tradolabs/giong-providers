@@ -95,6 +95,7 @@ pub struct HttpRequestBuilder {
     method: HttpMethod,
     base_url: String,
     path: String,
+    query: Vec<(String, String)>,
     headers: Vec<(String, String)>,
     body: Vec<u8>,
     response_parser: ResponseParser,
@@ -107,6 +108,7 @@ impl HttpRequestBuilder {
             method,
             base_url: String::new(),
             path: String::new(),
+            query: Vec::new(),
             headers: Vec::new(),
             body: Vec::new(),
             response_parser: default_parser,
@@ -130,6 +132,11 @@ impl HttpRequestBuilder {
 
     pub fn header(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
         self.headers.push((name.into(), value.into()));
+        self
+    }
+
+    pub fn query(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
+        self.query.push((name.into(), value.into()));
         self
     }
 
@@ -163,7 +170,10 @@ impl HttpRequestBuilder {
     pub fn send<T: DeserializeOwned>(mut self) -> Result<Option<T>, Error> {
         let base = self.base_url.trim_end_matches('/');
         let path = self.path.trim_start_matches('/');
-        let url = Url::parse(&format!("{base}/{path}"))?;
+        let mut url = Url::parse(&format!("{base}/{path}"))?;
+        if !self.query.is_empty() {
+            url.query_pairs_mut().extend_pairs(&self.query);
+        }
         if !self.headers.iter().any(|(k, _)| k.eq_ignore_ascii_case("content-type")) {
             self.headers.push(("content-type".into(), "application/json".into()));
         }
