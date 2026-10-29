@@ -21,7 +21,20 @@ struct Config {
     instance_type: String,
     compatibility_date: String,
     #[serde(default)]
+    observability: Observability,
+    #[serde(default)]
     vars: BTreeMap<String, String>,
+}
+
+#[derive(Deserialize, Serialize)]
+struct Observability {
+    enabled: bool,
+}
+
+impl Default for Observability {
+    fn default() -> Self {
+        Self { enabled: true }
+    }
 }
 
 #[derive(Deserialize, Serialize)]
@@ -51,6 +64,7 @@ fn script_metadata(config: &Config, settings: Option<&Value>) -> Value {
 
     let mut metadata = json!({
         "main_module": "index.js",
+        "observability": config.observability,
         "bindings": bindings,
         "compatibility_date": config.compatibility_date,
         "containers": [{"name": config.name, "class_name": config.class_name}],

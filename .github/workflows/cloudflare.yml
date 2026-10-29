@@ -11,6 +11,8 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      WKG_VERSION: "0.16.1"
     defaults:
       run:
         shell: bash
@@ -33,8 +35,16 @@ jobs:
             > wasm-artifacts.txt
           test -s wasm-artifacts.txt
 
+      - name: Cache wkg
+        id: cache-wkg
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/bin/wkg
+          key: wkg-${{ runner.os }}-${{ runner.arch }}-${{ env.WKG_VERSION }}
+
       - name: Install wkg
-        run: cargo +stable install wkg --version 0.16.1 --locked
+        if: steps.cache-wkg.outputs.cache-hit != 'true'
+        run: cargo +stable install wkg --version "$WKG_VERSION" --locked
 
       - name: Log in to GHCR
         env:

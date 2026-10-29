@@ -8,6 +8,7 @@ export interface ContainersConfig {
     className: string;
     binding: string;
     compatibilityDate: string;
+    observability?: {enabled: boolean};
     maxInstances?: number;
     instanceType?: string;
     vars?: Record<string, string>;
@@ -20,6 +21,7 @@ export class Containers extends ResourceConfig {
     readonly className: string;
     readonly binding: string;
     readonly compatibilityDate: string;
+    readonly observability: {enabled: boolean};
     readonly maxInstances: number;
     readonly instanceType: string;
     readonly vars: Record<string, string>;
@@ -31,6 +33,7 @@ export class Containers extends ResourceConfig {
         this.className = config.className;
         this.binding = config.binding;
         this.compatibilityDate = config.compatibilityDate;
+        this.observability = config.observability ?? {enabled: true};
         this.maxInstances = config.maxInstances ?? 1;
         this.instanceType = config.instanceType ?? "lite";
         this.vars = config.vars ?? {};
