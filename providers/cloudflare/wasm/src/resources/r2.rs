@@ -1,8 +1,11 @@
+#[path = "../api.rs"]
 mod api;
+#[path = "../macros.rs"]
 mod macros;
 
 use crate::api::Api;
 use anyhow::{Context, Result};
+use giong_api_client::HttpMethod;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
@@ -21,11 +24,10 @@ pub struct R2State {
 
 pub fn read(config: &str) -> Result<Option<String>> {
     let config: R2Config = serde_json::from_str(config)?;
-    let state: Option<R2State> =
-        Api::new()?.request("GET", &["r2", "buckets", &config.name], Vec::new())?;
-    state
-        .map(|state| Ok(serde_json::to_string(&state)?))
-        .transpose()
+    let state: Option<R2State> = Api::request(HttpMethod::Get)
+        .path(format!("r2/buckets/{}", config.name))
+        .send()?;
+    state.map(|state| Ok(serde_json::to_string(&state)?)).transpose()
 }
 
 pub fn apply(config: &str, current: Option<&str>) -> Result<String> {
@@ -34,19 +36,19 @@ pub fn apply(config: &str, current: Option<&str>) -> Result<String> {
     if let Some(current) = current.filter(|state| state.name == config.name) {
         return Ok(serde_json::to_string(&current)?);
     }
-    let state: R2State = Api::new()?
-        .request("POST", &["r2", "buckets"], serde_json::to_vec(&config)?)?
+    let state: R2State = Api::request(HttpMethod::Post)
+        .path("r2/buckets")
+        .body(serde_json::to_vec(&config)?)
+        .send()?
         .context("Cloudflare API returned no resource")?;
     Ok(serde_json::to_string(&state)?)
 }
 
 pub fn delete(state: &str) -> Result<()> {
     let state: R2State = serde_json::from_str(state)?;
-    Api::new()?.request::<serde_json::Value>(
-        "DELETE",
-        &["r2", "buckets", &state.name],
-        Vec::new(),
-    )?;
+    Api::request(HttpMethod::Delete)
+        .path(format!("r2/buckets/{}", state.name))
+        .send::<serde_json::Value>()?;
     Ok(())
 }
 

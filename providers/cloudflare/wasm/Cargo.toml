@@ -5,11 +5,15 @@ edition = "2024"
 
 [[bin]]
 name = "giong-cloudflare-r2"
-path = "src/r2.rs"
+path = "src/resources/r2.rs"
+
+[[bin]]
+name = "giong-cloudflare-containers"
+path = "src/resources/containers.rs"
 
 [dependencies]
+anyhow.workspace = true
+giong-api-client.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-anyhow.workspace = true
-url.workspace = true
 wit-bindgen.workspace = true
