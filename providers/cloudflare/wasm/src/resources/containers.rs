@@ -3,8 +3,8 @@ mod api;
 #[path = "../macros.rs"]
 mod macros;
 
-use api::Api;
 use anyhow::{Context, Result};
+use api::Api;
 use giong_api_client::HttpMethod;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -31,17 +31,15 @@ struct State {
 }
 
 fn find_application(name: &str) -> Result<Option<String>> {
-    let apps: Vec<Value> = Api::request(HttpMethod::Get)
-        .path("containers/applications")
-        .send()?
-        .unwrap_or_default();
+    let apps: Vec<Value> =
+        Api::request(HttpMethod::Get).path("containers/applications").send()?.unwrap_or_default();
     Ok(apps
         .into_iter()
         .find(|app| app["name"].as_str() == Some(name))
         .and_then(|app| app["id"].as_str().map(String::from)))
 }
 
-fn upload_script(config: &Config) -> Result<()> {
+fn script_metadata(config: &Config, settings: Option<&Value>) -> Value {
     let mut bindings = vec![json!({
         "type": "durable_object_namespace",
         "name": config.binding,
@@ -51,17 +49,36 @@ fn upload_script(config: &Config) -> Result<()> {
         bindings.push(json!({"type": "plain_text", "name": key, "text": text}));
     }
 
-    let metadata = json!({
+    let mut metadata = json!({
         "main_module": "index.js",
         "bindings": bindings,
         "compatibility_date": config.compatibility_date,
         "containers": [{"name": config.name, "class_name": config.class_name}],
         "keep_bindings": ["secret_text"],
-        "migrations": {
+    });
+    let has_namespace =
+        settings.and_then(|settings| settings["bindings"].as_array()).is_some_and(|bindings| {
+            bindings.iter().any(|binding| {
+                binding["type"] == "durable_object_namespace"
+                    && binding["class_name"] == config.class_name
+                    && binding["namespace_id"].as_str().is_some_and(|id| !id.is_empty())
+                    && binding["script_name"].as_str().is_none_or(|name| name == config.name)
+            })
+        });
+    if !has_namespace {
+        metadata["migrations"] = json!({
             "new_tag": "v1",
             "steps": [{"new_sqlite_classes": [config.class_name]}],
-        },
-    });
+        });
+    }
+    metadata
+}
+
+fn upload_script(config: &Config) -> Result<()> {
+    let settings: Option<Value> = Api::request(HttpMethod::Get)
+        .path(format!("workers/scripts/{}/settings", config.name))
+        .send()?;
+    let metadata = script_metadata(config, settings.as_ref());
 
     Api::request(HttpMethod::Put)
         .path(format!("workers/scripts/{}", config.name))
