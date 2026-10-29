@@ -64,7 +64,13 @@ fn script_metadata(config: &Config, settings: Option<&Value>) -> Value {
 
     let mut metadata = json!({
         "main_module": "index.js",
-        "observability": config.observability,
+        "observability": {
+            "enabled": config.observability.enabled,
+            "logs": {
+                "enabled": config.observability.enabled,
+                "invocation_logs": true,
+            },
+        },
         "bindings": bindings,
         "compatibility_date": config.compatibility_date,
         "containers": [{"name": config.name, "class_name": config.class_name}],
@@ -136,6 +142,7 @@ fn replace_image(application_id: &str, config: &Config) -> Result<()> {
     Api::request(HttpMethod::Post)
         .path(format!("containers/applications/{application_id}/rollouts"))
         .body(serde_json::to_vec(&json!({
+            "description": format!("Deploy {} with image {}", config.name, config.image),
             "target_configuration": {
                 "image": config.image,
                 "instance_type": config.instance_type,
@@ -158,15 +165,14 @@ pub fn read(input: &str) -> Result<Option<String>> {
 
 pub fn apply(input: &str, _current: Option<&str>) -> Result<String> {
     let config: Config = serde_json::from_str(input)?;
-    let application_id = match find_application(&config.name)? {
+    let existing_application = find_application(&config.name)?;
+    upload_script(&config)?;
+    let application_id = match existing_application {
         Some(id) => {
             replace_image(&id, &config)?;
             id
         }
-        None => {
-            upload_script(&config)?;
-            create_application(&config)?
-        }
+        None => create_application(&config)?,
     };
 
     Ok(serde_json::to_string(&State { name: config.name, application_id })?)
