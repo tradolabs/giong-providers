@@ -1,0 +1,11 @@
+[package]
+name = "giong-cloudflare-api"
+version.workspace = true
+edition = "2024"
+
+[dependencies]
+giong-api-client.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+serde_with = { version = "3", default-features = false, features = ["macros"] }

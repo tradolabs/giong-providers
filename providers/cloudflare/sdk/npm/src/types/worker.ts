@@ -1,41 +1,41 @@
 import {buildSync} from "esbuild";
 import {ResourceConfig} from "@giong/sdk";
 
-export interface ContainersConfig {
-    name: string;
-    main: string;
+export interface WorkerContainerConfig {
     image: string;
     className: string;
     binding: string;
-    compatibilityDate: string;
-    observability?: {enabled: boolean};
     maxInstances?: number;
     instanceType?: string;
+}
+
+export interface WorkerConfig {
+    name: string;
+    main: string;
+    container?: WorkerContainerConfig;
+    compatibilityDate: string;
+    observability?: boolean;
     vars?: Record<string, string>;
 }
 
-export class Containers extends ResourceConfig {
+export class Worker extends ResourceConfig {
     readonly name: string;
     readonly source: string;
-    readonly image: string;
-    readonly className: string;
-    readonly binding: string;
+    readonly container?: WorkerContainerConfig & {maxInstances: number; instanceType: string};
     readonly compatibilityDate: string;
-    readonly observability: {enabled: boolean};
-    readonly maxInstances: number;
-    readonly instanceType: string;
+    readonly observability: boolean;
     readonly vars: Record<string, string>;
 
-    constructor(config: ContainersConfig) {
+    constructor(config: WorkerConfig) {
         super();
         this.name = config.name;
-        this.image = config.image;
-        this.className = config.className;
-        this.binding = config.binding;
+        this.container = config.container === undefined ? undefined : {
+            ...config.container,
+            maxInstances: config.container.maxInstances ?? 1,
+            instanceType: config.container.instanceType ?? "lite",
+        };
         this.compatibilityDate = config.compatibilityDate;
-        this.observability = config.observability ?? {enabled: true};
-        this.maxInstances = config.maxInstances ?? 1;
-        this.instanceType = config.instanceType ?? "lite";
+        this.observability = config.observability ?? true;
         this.vars = config.vars ?? {};
         this.source = buildSync({
             entryPoints: [config.main],
@@ -50,6 +50,6 @@ export class Containers extends ResourceConfig {
     }
 
     get type(): string {
-        return "cloudflare.containers";
+        return "cloudflare.worker";
     }
 }

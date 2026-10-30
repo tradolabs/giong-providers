@@ -19,8 +19,14 @@ interface host {
 }
 
 interface lifecycle {
-    read: func(config: string) -> result<option<string>, string>;
-    apply: func(config: string, current: option<string>) -> result<string, string>;
+    enum change-status {
+        created,
+        updated,
+        unchanged,
+    }
+
+    read: func(config: string) -> result<change-status, string>;
+    apply: func(config: string) -> result<string, string>;
     delete: func(state: string) -> result<_, string>;
 }
 
