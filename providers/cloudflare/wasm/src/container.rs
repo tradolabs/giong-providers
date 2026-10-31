@@ -28,14 +28,16 @@ struct Resource {
 }
 
 pub async fn read(input: &str) -> Result<ChangeStatus> {
-    let config: Config = serde_json::from_str(input)?;
+    let config: Config = serde_json::from_str(input).context("Invalid container inputs")?;
     let settings = Api::new()
         .get_worker_settings(&config.worker_name)
-        .await?
+        .await
+        .context("Could not read Cloudflare worker settings")?
         .with_context(|| format!("Worker {} not found", config.worker_name))?;
     let application = Api::new()
         .list_containers()
-        .await?
+        .await
+        .context("Could not list Cloudflare containers")?
         .into_iter()
         .find(|application| application.name == config.name);
 
@@ -66,7 +68,7 @@ pub async fn read(input: &str) -> Result<ChangeStatus> {
             class_name: config.class_name.clone(),
             image: configuration.image,
             max_instances: application.max_instances,
-            instance_type: configuration.instance_type,
+            instance_type: configuration.instance_type.unwrap_or_else(|| "lite".into()),
             observability,
         },
     };
@@ -74,10 +76,11 @@ pub async fn read(input: &str) -> Result<ChangeStatus> {
 }
 
 pub async fn apply(input: &str) -> Result<String> {
-    let config: Config = serde_json::from_str(input)?;
+    let config: Config = serde_json::from_str(input).context("Invalid container inputs")?;
     let settings = Api::new()
         .get_worker_settings(&config.worker_name)
-        .await?
+        .await
+        .context("Could not read Cloudflare worker settings")?
         .context("Worker must be applied before its containers")?;
     ensure!(
         settings.has_namespace(&config.class_name, &config.worker_name),
@@ -88,14 +91,15 @@ pub async fn apply(input: &str) -> Result<String> {
         settings.get_namespace_id(&config.class_name).context("Missing DO namespace")?;
     let configuration = ContainerConfiguration {
         image: config.image.clone(),
-        instance_type: config.instance_type.clone(),
+        instance_type: Some(config.instance_type.clone()),
         observability: Some(ContainerObservability {
             logs: Some(ContainerLogs { enabled: Some(config.observability) }),
         }),
     };
     let application = Api::new()
         .list_containers()
-        .await?
+        .await
+        .context("Could not list Cloudflare containers")?
         .into_iter()
         .find(|application| application.name == config.name);
     let id = match application {

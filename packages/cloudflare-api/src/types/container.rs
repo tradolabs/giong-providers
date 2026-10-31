@@ -14,7 +14,7 @@ pub struct Container {
 #[derive(Serialize, Deserialize)]
 pub struct ContainerConfiguration {
     pub image: String,
-    pub instance_type: String,
+    pub instance_type: Option<String>,
     pub observability: Option<ContainerObservability>,
 }
 
