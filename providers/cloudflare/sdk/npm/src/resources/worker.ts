@@ -8,6 +8,7 @@ export interface WorkerContainerBinding {
 }
 
 export interface WorkerConfig {
+    name: string;
     main: string;
     containers?: WorkerContainerBinding[];
     compatibilityDate: string;
@@ -40,7 +41,7 @@ export class Worker extends Resource<CloudflareProvider> {
 
     get inputs(): Record<string, unknown> {
         return {
-            name: this.name,
+            name: this.config.name,
             source: this.source,
             containers: (this.config.containers ?? []).map(container => ({
                 class_name: container.className,

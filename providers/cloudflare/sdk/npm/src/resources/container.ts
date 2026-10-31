@@ -2,6 +2,7 @@ import {Resource} from "@giong/sdk";
 import {CloudflareProvider} from "../provider.ts";
 
 export interface ContainerConfig {
+    name: string,
     workerName: string;
     className: string;
     image: string;
@@ -24,7 +25,7 @@ export class Container extends Resource<CloudflareProvider> {
 
     get inputs(): Record<string, unknown> {
         return {
-            name: this.name,
+            name: this.config.name,
             worker_name: this.config.workerName,
             class_name: this.config.className,
             image: this.config.image,
