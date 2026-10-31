@@ -12,6 +12,10 @@ name = "giong-cloudflare-worker"
 path = "src/worker.rs"
 
 [[bin]]
+name = "giong-cloudflare-container"
+path = "src/container.rs"
+
+[[bin]]
 name = "giong-cloudflare-worker-domain"
 path = "src/worker_domain.rs"
 

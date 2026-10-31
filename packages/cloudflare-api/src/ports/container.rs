@@ -3,7 +3,7 @@ use crate::types::container::*;
 use std::future::Future;
 
 pub trait ContainerApi {
-    fn find_container(&self, name: &str) -> impl Future<Output = Result<Option<Container>, Error>>;
+    fn list_containers(&self) -> impl Future<Output = Result<Vec<Container>, Error>>;
 
     fn create_container(
         &self,

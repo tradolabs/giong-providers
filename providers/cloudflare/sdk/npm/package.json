@@ -9,6 +9,7 @@
   "types": "./dist/index.d.ts",
   "exports": "./dist/index.js",
   "scripts": {
+    "install:fix": "pnpm install --fix-lockfile",
     "build": "tsc",
     "test": "tsc && node --test tests/*.test.mjs",
     "prepack": "pnpm build"

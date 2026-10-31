@@ -50,14 +50,14 @@ impl CloudflareApi {
 }
 
 impl ContainerApi for CloudflareApi {
-    async fn find_container(&self, name: &str) -> Result<Option<Container>, Error> {
+    async fn list_containers(&self) -> Result<Vec<Container>, Error> {
         let containers = self
             .request(HttpMethod::Get)
             .path("containers/applications")
             .execute::<Vec<Container>>()
             .await?
             .unwrap_or_default();
-        Ok(containers.into_iter().find(|container| container.name == name))
+        Ok(containers)
     }
 
     async fn create_container(

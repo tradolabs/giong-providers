@@ -197,7 +197,7 @@ importers:
     devDependencies:
       '@giong/sdk':
         specifier: github:tradolabs/giong#main&path:/sdks/npm
-        version: https://codeload.github.com/tradolabs/giong/tar.gz/9cbfb4875a8cbc73f6e0c4c3b5b4f2dafeb65935#path:/sdks/npm
+        version: https://codeload.github.com/tradolabs/giong/tar.gz/21e4d34f9e8f9f8bb8d1924011f0848a59132ce7#path:/sdks/npm
       '@types/node':
         specifier: ^22.20.4
         version: 22.20.5
@@ -363,8 +363,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@giong/sdk@https://codeload.github.com/tradolabs/giong/tar.gz/9cbfb4875a8cbc73f6e0c4c3b5b4f2dafeb65935#path:/sdks/npm':
-    resolution: {gitHosted: true, integrity: sha512-QYPRIIQWjwmn0F4YNlwOM4/iFB/ssiJjdPcjVI0n/zpTkhGES+RPUeDfDMJcfknP/ptv+la6cWQkeKuReE+4uA==, path: /sdks/npm, tarball: https://codeload.github.com/tradolabs/giong/tar.gz/9cbfb4875a8cbc73f6e0c4c3b5b4f2dafeb65935}
+  '@giong/sdk@https://codeload.github.com/tradolabs/giong/tar.gz/21e4d34f9e8f9f8bb8d1924011f0848a59132ce7#path:/sdks/npm':
+    resolution: {gitHosted: true, integrity: sha512-i1QbaXV+AzD6y55Y1GfdHVLgDR4z+DevV2W0opCRVtggK1/cjJxGz/L9ENjpDIYkRSjL1OTHdzRoCk227BtZzg==, path: /sdks/npm, tarball: https://codeload.github.com/tradolabs/giong/tar.gz/21e4d34f9e8f9f8bb8d1924011f0848a59132ce7}
     version: 0.1.0
 
   '@types/node@22.20.5':
@@ -463,7 +463,7 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
-  '@giong/sdk@https://codeload.github.com/tradolabs/giong/tar.gz/9cbfb4875a8cbc73f6e0c4c3b5b4f2dafeb65935#path:/sdks/npm': {}
+  '@giong/sdk@https://codeload.github.com/tradolabs/giong/tar.gz/21e4d34f9e8f9f8bb8d1924011f0848a59132ce7#path:/sdks/npm': {}
 
   '@types/node@22.20.5':
     dependencies:

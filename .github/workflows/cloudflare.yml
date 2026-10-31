@@ -11,8 +11,6 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    env:
-      WKG_VERSION: "0.16.1"
     defaults:
       run:
         shell: bash
@@ -35,33 +33,34 @@ jobs:
             > wasm-artifacts.txt
           test -s wasm-artifacts.txt
 
-      - name: Cache wkg
-        id: cache-wkg
-        uses: actions/cache@v5
+      - name: Set up ORAS
+        uses: oras-project/setup-oras@v2
         with:
-          path: ~/.cargo/bin/wkg
-          key: wkg-${{ runner.os }}-${{ runner.arch }}-${{ env.WKG_VERSION }}
-
-      - name: Install wkg
-        if: steps.cache-wkg.outputs.cache-hit != 'true'
-        run: cargo +stable install wkg --version "$WKG_VERSION" --locked
+          version: 1.3.1
 
       - name: Log in to GHCR
         env:
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USER" --password-stdin
+        run: printf '%s' "$GHCR_TOKEN" | oras login ghcr.io --username "$GHCR_USER" --password-stdin
 
-      - name: Publish Cloudflare resources
+      - name: Publish Cloudflare package
         env:
           REGISTRY_OWNER: ${{ github.repository_owner }}
         run: |
           version="$(cargo +stable metadata --locked --no-deps --format-version 1 \
             | jq -er '.packages[] | select(.name == "giong-cloudflare") | .version')"
-          owner="${REGISTRY_OWNER,,}"
+          owner="$(printf '%s' "$REGISTRY_OWNER" | tr '[:upper:]' '[:lower:]')"
+          mkdir -p wasm-package
+          layers=()
           while IFS= read -r artifact; do
             binary="$(basename "$artifact" .wasm)"
             resource="${binary#giong-cloudflare-}"
-            wkg oci push "ghcr.io/$owner/giong-providers/cloudflare/$resource:$version" "$artifact" \
-              --annotation "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+            cp "$artifact" "wasm-package/$resource.wasm"
+            layers+=("$resource.wasm:application/wasm")
           done < wasm-artifacts.txt
+          cd wasm-package
+          oras push "ghcr.io/$owner/giong-providers/cloudflare:$version" \
+            --artifact-type application/vnd.giong.provider.v1 \
+            --annotation "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            "${layers[@]}"

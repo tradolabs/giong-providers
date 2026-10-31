@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 #[derive(Deserialize)]
 pub struct WorkerSettings {
-    pub compatibility_date: Option<String>,
+    pub compatibility_date: String,
     pub observability: Option<WorkerObservability>,
     #[serde(default)]
     pub bindings: Vec<WorkerBinding>,
@@ -19,10 +19,6 @@ impl WorkerSettings {
                     && binding.class_name.as_deref() == Some(class_name)
             })
             .and_then(|binding| binding.namespace_id.as_deref())
-    }
-
-    pub fn has_durable_object(&self) -> bool {
-        self.bindings.iter().any(|binding| binding.r#type == "durable_object_namespace")
     }
 
     pub fn has_namespace(&self, class_name: &str, worker_name: &str) -> bool {
@@ -93,7 +89,7 @@ impl WorkerBinding {
 #[derive(Serialize)]
 pub struct WorkerMetadata {
     pub main_module: String,
-    pub compatibility_date: Option<String>,
+    pub compatibility_date: String,
     pub observability: Option<WorkerObservability>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub bindings: Vec<WorkerBinding>,

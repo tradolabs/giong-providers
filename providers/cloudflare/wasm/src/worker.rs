@@ -1,21 +1,21 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use giong_cloudflare::Api;
 use giong_cloudflare_api::{
-    Container as ApiContainer, ContainerApi, ContainerConfiguration, ContainerDurableObjects,
-    ContainerLogs, ContainerObservability, CreateContainerParams, CreateRolloutParams,
-    UpdateContainerParams, WorkerApi, WorkerBinding, WorkerContainerMetadata, WorkerLogs,
-    WorkerMetadata, WorkerMigrationStep, WorkerMigrations, WorkerObservability,
-    WorkerScriptContent, WorkerSettings,
+    WorkerApi, WorkerBinding, WorkerContainerMetadata, WorkerLogs, WorkerMetadata,
+    WorkerMigrationStep, WorkerMigrations, WorkerObservability, WorkerScriptContent,
+    WorkerSettings,
 };
 use giong_provider::bindings::{enums::ChangeStatus, helpers::diff};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 #[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 struct Config {
     name: String,
     source: String,
-    container: Option<ContainerConfig>,
+    #[serde(default)]
+    containers: Vec<ContainerBinding>,
     compatibility_date: String,
     observability: bool,
     #[serde(default)]
@@ -23,32 +23,17 @@ struct Config {
 }
 
 #[derive(Deserialize, Serialize)]
-struct ContainerConfig {
-    image: String,
+#[serde(deny_unknown_fields)]
+struct ContainerBinding {
     class_name: String,
     binding: String,
-    max_instances: u32,
-    instance_type: String,
-}
-
-#[derive(Deserialize, Serialize)]
-struct Resource {
-    name: String,
-    source: Option<String>,
-    container: Option<ContainerConfig>,
-    compatibility_date: Option<String>,
-    observability: bool,
-    #[serde(default)]
-    vars: BTreeMap<String, String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    application_id: Option<String>,
 }
 
 impl Config {
     fn build_metadata(&self, settings: Option<&WorkerSettings>) -> WorkerMetadata {
         let mut metadata = WorkerMetadata {
             main_module: "index.js".into(),
-            compatibility_date: Some(self.compatibility_date.clone()),
+            compatibility_date: self.compatibility_date.clone(),
             observability: Some(WorkerObservability {
                 enabled: self.observability,
                 logs: Some(WorkerLogs { enabled: self.observability, invocation_logs: true }),
@@ -58,29 +43,32 @@ impl Config {
             containers: None,
             migrations: None,
         };
-
-        if let Some(container) = &self.container {
+        let mut containers = Vec::new();
+        let mut new_classes = Vec::new();
+        for container in &self.containers {
             metadata.bindings.push(WorkerBinding::durable_object_namespace(
                 &container.binding,
                 &container.class_name,
             ));
-            metadata.containers = Some(vec![WorkerContainerMetadata {
-                name: self.name.clone(),
+            containers.push(WorkerContainerMetadata {
+                name: container.class_name.clone(),
                 class_name: container.class_name.clone(),
-            }]);
-
-            let has_namespace = settings
-                .is_some_and(|settings| settings.has_namespace(&container.class_name, &self.name));
-            if !has_namespace {
-                metadata.migrations = Some(WorkerMigrations {
-                    new_tag: Some("v1".into()),
-                    steps: vec![WorkerMigrationStep {
-                        new_sqlite_classes: Some(vec![container.class_name.clone()]),
-                    }],
-                });
+            });
+            if !settings
+                .is_some_and(|settings| settings.has_namespace(&container.class_name, &self.name))
+            {
+                new_classes.push(container.class_name.clone());
             }
         }
-
+        if !containers.is_empty() {
+            metadata.containers = Some(containers);
+        }
+        if !new_classes.is_empty() {
+            metadata.migrations = Some(WorkerMigrations {
+                new_tag: None,
+                steps: vec![WorkerMigrationStep { new_sqlite_classes: Some(new_classes) }],
+            });
+        }
         for (name, text) in &self.vars {
             metadata.bindings.push(WorkerBinding::plain_text(name, text));
         }
@@ -88,12 +76,11 @@ impl Config {
     }
 }
 
-fn get_resource(
+fn inspect(
     config: &Config,
     settings: &WorkerSettings,
     content: &WorkerScriptContent,
-    application: Option<&ApiContainer>,
-) -> Option<Resource> {
+) -> Option<Config> {
     let observability = settings.observability.as_ref();
     let enabled = observability.map(|o| o.enabled).unwrap_or(false);
     if !observability
@@ -104,7 +91,7 @@ fn get_resource(
     }
 
     let mut vars = BTreeMap::new();
-    let mut namespace = None;
+    let mut namespaces = Vec::new();
     for binding in &settings.bindings {
         match binding.r#type.as_str() {
             "secret_text" => {}
@@ -115,171 +102,63 @@ fn get_resource(
                 }
                 vars.insert(binding.name.clone(), text.into());
             }
-            "durable_object_namespace" => {
-                if namespace.replace(binding).is_some() {
-                    return None;
-                }
-            }
+            "durable_object_namespace" => namespaces.push(binding),
             _ => return None,
         }
     }
 
-    let container = match namespace {
-        None => None,
-        Some(binding) => {
-            if binding.script_name.as_deref().is_some_and(|name| name != config.name) {
-                return None;
-            }
-            let application = application?;
-            let namespace_id = binding.namespace_id.as_deref().filter(|id| !id.is_empty())?;
-            if application.durable_objects.as_ref().and_then(|do_| do_.namespace_id.as_deref())
-                != Some(namespace_id)
-            {
-                return None;
-            }
-            let configuration = &application.configuration;
-            let logs = configuration
-                .observability
-                .as_ref()
-                .and_then(|o| o.logs.as_ref())
-                .and_then(|l| l.enabled);
-            if logs.unwrap_or(false) != enabled {
-                return None;
-            }
-            Some(ContainerConfig {
-                image: configuration.image.clone(),
-                class_name: binding.class_name.clone()?,
-                binding: binding.name.clone(),
-                max_instances: application.max_instances,
-                instance_type: configuration.instance_type.clone(),
-            })
+    if namespaces.len() != config.containers.len() {
+        return None;
+    }
+
+    let mut containers = Vec::new();
+    for expected in &config.containers {
+        let binding = namespaces.iter().find(|binding| binding.name == expected.binding)?;
+        if binding.script_name.as_deref().is_some_and(|name| name != config.name) {
+            return None;
         }
-    };
+        binding.namespace_id.as_deref().filter(|id| !id.is_empty())?;
+        containers.push(ContainerBinding {
+            class_name: binding.class_name.clone()?,
+            binding: binding.name.clone(),
+        });
+    }
 
     let entrypoint = content.entrypoint.as_deref().unwrap_or("index.js");
-    let source = if entrypoint == "index.js" && content.modules.len() == 1 {
-        content.modules.get("index.js").cloned()
-    } else {
-        None
-    };
+    let source = content.modules.get(entrypoint)?.clone();
 
-    Some(Resource {
+    Some(Config {
         name: config.name.clone(),
         source,
-        container,
+        containers,
         compatibility_date: settings.compatibility_date.clone(),
         observability: enabled,
         vars,
-        application_id: application.map(|application| application.id.clone()),
     })
 }
 
 pub async fn read(input: &str) -> Result<ChangeStatus> {
     let config: Config = serde_json::from_str(input)?;
-    let api = Api::new();
-
-    let Some(settings) = api.get_worker_settings(&config.name).await? else {
+    let Some(settings) = Api::new().get_worker_settings(&config.name).await? else {
         return Ok(ChangeStatus::Created);
     };
-    let Some(content) = api.get_worker_script(&config.name).await? else {
+    let Some(content) = Api::new().get_worker_script(&config.name).await? else {
         return Ok(ChangeStatus::Created);
     };
-
-    let application = if config.container.is_some() || settings.has_durable_object() {
-        api.find_container(&config.name).await?
-    } else {
-        None
-    };
-
-    Ok(diff(&config, &get_resource(&config, &settings, &content, application.as_ref())))
+    Ok(diff(&config, &inspect(&config, &settings, &content)))
 }
 
 pub async fn apply(input: &str) -> Result<String> {
     let config: Config = serde_json::from_str(input)?;
-    let api = Api::new();
-    let settings = api.get_worker_settings(&config.name).await?;
+    let settings = Api::new().get_worker_settings(&config.name).await?;
     let metadata = config.build_metadata(settings.as_ref());
-
-    api.upload_worker_script(&config.name, &metadata, &config.source).await?;
-
-    let application_id = if let Some(container) = &config.container {
-        let configuration = ContainerConfiguration {
-            image: container.image.clone(),
-            instance_type: container.instance_type.clone(),
-            observability: Some(ContainerObservability {
-                logs: Some(ContainerLogs { enabled: Some(config.observability) }),
-            }),
-        };
-        let application = api.find_container(&config.name).await?;
-
-        let application_id = match application {
-            Some(application) => {
-                api.update_container(
-                    &application.id,
-                    &UpdateContainerParams { max_instances: Some(container.max_instances) },
-                )
-                .await?;
-                api.create_container_rollout(
-                    &application.id,
-                    &CreateRolloutParams {
-                        description: format!(
-                            "Deploy {} with image {}",
-                            config.name, container.image
-                        ),
-                        target_configuration: configuration,
-                        strategy: "rolling".into(),
-                        step_percentage: 100,
-                    },
-                )
-                .await?;
-                application.id
-            }
-            None => {
-                let settings = api
-                    .get_worker_settings(&config.name)
-                    .await?
-                    .context("Missing worker settings")?;
-                let namespace_id = settings
-                    .get_namespace_id(&container.class_name)
-                    .context("Missing DO namespace")?;
-                api.create_container(&CreateContainerParams {
-                    name: config.name.clone(),
-                    scheduling_policy: "default".into(),
-                    instances: 0,
-                    max_instances: container.max_instances,
-                    configuration,
-                    durable_objects: Some(ContainerDurableObjects {
-                        namespace_id: Some(namespace_id.into()),
-                    }),
-                })
-                .await?
-                .context("Failed to create container")?
-                .id
-            }
-        };
-        Some(application_id)
-    } else {
-        None
-    };
-
-    Ok(serde_json::to_string(&Resource {
-        name: config.name,
-        source: Some(config.source),
-        container: config.container,
-        compatibility_date: Some(config.compatibility_date),
-        observability: config.observability,
-        vars: config.vars,
-        application_id,
-    })?)
+    Api::new().upload_worker_script(&config.name, &metadata, &config.source).await?;
+    Ok(serde_json::to_string(&config)?)
 }
 
 pub async fn delete(input: &str) -> Result<()> {
-    let resource: Resource = serde_json::from_str(input)?;
-    let api = Api::new();
-    if let Some(application_id) = resource.application_id {
-        api.delete_container(&application_id).await?;
-    }
-    api.delete_worker_script(&resource.name).await?;
+    let resource: Config = serde_json::from_str(input)?;
+    Api::new().delete_worker_script(&resource.name).await?;
     Ok(())
 }
 
