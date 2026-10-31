@@ -25,12 +25,12 @@ export class Container extends Resource<CloudflareProvider> {
     get inputs(): Record<string, unknown> {
         return {
             name: this.name,
-            'worker_name': this.config.workerName,
-            'class_name': this.config.className,
-            'image': this.config.image,
-            'max_instances': this.config.maxInstances ?? 1,
-            'instance_type': this.config.instanceType ?? 'lite',
-            'observability': this.config.observability ?? true,
+            worker_name: this.config.workerName,
+            class_name: this.config.className,
+            image: this.config.image,
+            max_instances: this.config.maxInstances ?? 1,
+            instance_type: this.config.instanceType ?? 'lite',
+            observability: this.config.observability ?? true,
         }
     }
 }

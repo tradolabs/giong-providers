@@ -1,11 +1,15 @@
 import {Resource} from "@giong/sdk";
 import {CloudflareProvider} from "../provider.ts";
 
-export type R2Config = Record<string, never>;
+export type R2Config = {}
+
 
 export class R2 extends Resource<CloudflareProvider> {
-    constructor(name: string, _config: R2Config, provider: CloudflareProvider) {
+    private config: R2Config;
+
+    constructor(name: string, config: R2Config, provider: CloudflareProvider) {
         super(name, provider);
+        this.config = config;
     }
 
     get package(): string {
