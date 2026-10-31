@@ -17,7 +17,7 @@ export interface WorkerConfig {
 
 export class Worker extends Resource<CloudflareProvider> {
     private config: WorkerConfig;
-    private source: string;
+    private readonly source: string;
 
     constructor(name: string, config: WorkerConfig, provider: CloudflareProvider) {
         super(name, provider);
