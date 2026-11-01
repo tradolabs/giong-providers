@@ -139,10 +139,10 @@ fn inspect(
 
 pub async fn read(input: &str) -> Result<ChangeStatus> {
     let config: Config = serde_json::from_str(input)?;
-    let Some(settings) = Api::new().get_worker_settings(&config.name).await? else {
+    let Some(settings) = Api::new()?.get_worker_settings(&config.name).await? else {
         return Ok(ChangeStatus::Created);
     };
-    let Some(content) = Api::new().get_worker_script(&config.name).await? else {
+    let Some(content) = Api::new()?.get_worker_script(&config.name).await? else {
         return Ok(ChangeStatus::Created);
     };
     Ok(diff(&config, &inspect(&config, &settings, &content)))
@@ -150,15 +150,15 @@ pub async fn read(input: &str) -> Result<ChangeStatus> {
 
 pub async fn apply(input: &str) -> Result<String> {
     let config: Config = serde_json::from_str(input)?;
-    let settings = Api::new().get_worker_settings(&config.name).await?;
+    let settings = Api::new()?.get_worker_settings(&config.name).await?;
     let metadata = config.build_metadata(settings.as_ref());
-    Api::new().upload_worker_script(&config.name, &metadata, &config.source).await?;
+    Api::new()?.upload_worker_script(&config.name, &metadata, &config.source).await?;
     Ok(serde_json::to_string(&config)?)
 }
 
 pub async fn delete(input: &str) -> Result<()> {
     let resource: Config = serde_json::from_str(input)?;
-    Api::new().delete_worker_script(&resource.name).await?;
+    Api::new()?.delete_worker_script(&resource.name).await?;
     Ok(())
 }
 

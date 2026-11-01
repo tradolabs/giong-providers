@@ -8,15 +8,15 @@ macro_rules! export_resource {
                 config: String,
             ) -> ::std::result::Result<$crate::bindings::enums::ChangeStatus, String>
             {
-                $crate::block_on(crate::read(&config)).map_err(|error| error.to_string())
+                $crate::block_on(crate::read(&config)).map_err(|error| format!("{error:#}"))
             }
 
             fn apply(config: String) -> ::std::result::Result<String, String> {
-                $crate::block_on(crate::apply(&config)).map_err(|error| error.to_string())
+                $crate::block_on(crate::apply(&config)).map_err(|error| format!("{error:#}"))
             }
 
             fn delete(state: String) -> ::std::result::Result<(), String> {
-                $crate::block_on(crate::delete(&state)).map_err(|error| error.to_string())
+                $crate::block_on(crate::delete(&state)).map_err(|error| format!("{error:#}"))
             }
         }
 

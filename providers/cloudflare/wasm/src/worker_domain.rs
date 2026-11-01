@@ -15,13 +15,13 @@ struct Config {
 pub async fn read(input: &str) -> Result<ChangeStatus> {
     let config: Config = serde_json::from_str(input)?;
     let domains =
-        Api::new().search_worker_domains(Some(&config.hostname), Some(&config.zone_name)).await?;
+        Api::new()?.search_worker_domains(Some(&config.hostname), Some(&config.zone_name)).await?;
     Ok(diff(&config, &domains.first()))
 }
 
 pub async fn apply(input: &str) -> Result<String> {
     let config: Config = serde_json::from_str(input)?;
-    let resource = Api::new()
+    let resource = Api::new()?
         .create_worker_domain(&CreateWorkerDomainParams {
             hostname: config.hostname,
             zone_name: config.zone_name,
@@ -35,7 +35,7 @@ pub async fn apply(input: &str) -> Result<String> {
 
 pub async fn delete(input: &str) -> Result<()> {
     let resource: WorkerDomain = serde_json::from_str(input)?;
-    Api::new().delete_worker_domain(&resource.id).await?;
+    Api::new()?.delete_worker_domain(&resource.id).await?;
     Ok(())
 }
 

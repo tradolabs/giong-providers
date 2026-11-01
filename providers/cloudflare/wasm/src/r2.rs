@@ -12,13 +12,13 @@ struct Config {
 
 pub async fn read(input: &str) -> Result<ChangeStatus> {
     let config: Config = serde_json::from_str(input)?;
-    let resource = Api::new().get_r2_bucket(&config.name).await?;
+    let resource = Api::new()?.get_r2_bucket(&config.name).await?;
     Ok(diff(&config, &resource))
 }
 
 pub async fn apply(input: &str) -> Result<String> {
     let config: Config = serde_json::from_str(input)?;
-    let resource = Api::new()
+    let resource = Api::new()?
         .create_r2_bucket(&CreateR2BucketParams { name: config.name })
         .await?
         .context("Cloudflare API returned no R2 bucket")?;
@@ -27,7 +27,7 @@ pub async fn apply(input: &str) -> Result<String> {
 
 pub async fn delete(input: &str) -> Result<()> {
     let resource: R2Bucket = serde_json::from_str(input)?;
-    Api::new().delete_r2_bucket(&resource.name).await?;
+    Api::new()?.delete_r2_bucket(&resource.name).await?;
     Ok(())
 }
 

@@ -29,12 +29,12 @@ struct Resource {
 
 pub async fn read(input: &str) -> Result<ChangeStatus> {
     let config: Config = serde_json::from_str(input).context("Invalid container inputs")?;
-    let settings = Api::new()
+    let settings = Api::new()?
         .get_worker_settings(&config.worker_name)
         .await
         .context("Could not read Cloudflare worker settings")?
         .with_context(|| format!("Worker {} not found", config.worker_name))?;
-    let application = Api::new()
+    let application = Api::new()?
         .list_containers()
         .await
         .context("Could not list Cloudflare containers")?
@@ -77,7 +77,7 @@ pub async fn read(input: &str) -> Result<ChangeStatus> {
 
 pub async fn apply(input: &str) -> Result<String> {
     let config: Config = serde_json::from_str(input).context("Invalid container inputs")?;
-    let settings = Api::new()
+    let settings = Api::new()?
         .get_worker_settings(&config.worker_name)
         .await
         .context("Could not read Cloudflare worker settings")?
@@ -96,7 +96,7 @@ pub async fn apply(input: &str) -> Result<String> {
             logs: Some(ContainerLogs { enabled: Some(config.observability) }),
         }),
     };
-    let application = Api::new()
+    let application = Api::new()?
         .list_containers()
         .await
         .context("Could not list Cloudflare containers")?
@@ -113,13 +113,13 @@ pub async fn apply(input: &str) -> Result<String> {
                 "Container {} belongs to another namespace",
                 config.name
             );
-            Api::new()
+            Api::new()?
                 .update_container(
                     &application.id,
                     &UpdateContainerParams { max_instances: Some(config.max_instances) },
                 )
                 .await?;
-            Api::new()
+            Api::new()?
                 .create_container_rollout(
                     &application.id,
                     &CreateRolloutParams {
@@ -133,7 +133,7 @@ pub async fn apply(input: &str) -> Result<String> {
             application.id
         }
         None => {
-            Api::new()
+            Api::new()?
                 .create_container(&CreateContainerParams {
                     name: config.name.clone(),
                     scheduling_policy: "default".into(),
@@ -154,7 +154,7 @@ pub async fn apply(input: &str) -> Result<String> {
 
 pub async fn delete(input: &str) -> Result<()> {
     let resource: Resource = serde_json::from_str(input)?;
-    Api::new().delete_container(&resource.id).await?;
+    Api::new()?.delete_container(&resource.id).await?;
     Ok(())
 }
 
